@@ -18,6 +18,7 @@ from pucit.util import (
     is_windows,
     ok,
     run_cmd,
+    run_streaming,
     warn,
     which,
 )
@@ -132,12 +133,13 @@ def build_run_argv(password: str, name: Optional[str] = None) -> List[str]:
 
 
 def pull_image() -> Tuple[bool, str]:
+    """Pull the Oracle image with live docker progress (do not capture stdout)."""
     argv = docker_argv("pull", oracle_image())
-    result = run_cmd(argv, capture=True)
-    if result.returncode == 0:
-        return True, result.stdout or ""
-    combined = (result.stderr or "") + (result.stdout or "")
-    return False, combined
+    info("Image is several GB — layer progress from docker will print below.")
+    code = run_streaming(argv)
+    if code == 0:
+        return True, ""
+    return False, f"docker pull exited with code {code}"
 
 
 def docker_desktop_exe() -> Optional[Path]:

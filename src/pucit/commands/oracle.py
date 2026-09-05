@@ -25,16 +25,16 @@ def oracle_install(
         raise typer.Exit(1)
 
     info(f"Pulling {d.oracle_image()} …")
+    info("(First pull can take several minutes; watch docker progress below.)")
     success, output = d.pull_image()
     if not success:
         fail("Image pull failed.")
-        if "unauthorized" in output.lower() or "denied" in output.lower() or "login" in output.lower():
-            info("Oracle Container Registry may require login / license accept:")
-            info("  1) Visit https://container-registry.oracle.com/ and accept the Database Free terms")
-            info("  2) docker login container-registry.oracle.com")
-            info("  3) pucit install oracle")
-        else:
+        if output:
             print(output)
+        info("If you see unauthorized/denied errors, accept the license and login:")
+        info("  1) Visit https://container-registry.oracle.com/ and accept Database Free terms")
+        info("  2) docker login container-registry.oracle.com")
+        info("  3) pucit install oracle")
         raise typer.Exit(1)
     ok("Image ready")
 
