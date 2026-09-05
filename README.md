@@ -1,6 +1,6 @@
 # pucit
 
-PUCIT student toolkit CLI — install Oracle (Docker), set up PF/C++ essentials, campus proxy bypass, and compile/run lab code in one command.
+PUCIT student toolkit CLI — local Oracle for labs (Docker), PF C/C++ essentials, campus proxy bypass, and compile/run in one command.
 
 ```bash
 pip install pucit
@@ -13,54 +13,63 @@ pip install -e ".[dev]"
 ```bash
 pucit doctor
 pucit install pf
+pucit init          # or: pucit init c
 pucit run main.cpp
 ```
 
 ## Commands
 
-### C++ labs (ease)
+### C / C++ labs
 
 | Command | What it does |
 |---|---|
-| `pucit run main.cpp` | Compile with `g++` into `build/`, then run — no `./a.out` |
-| `pucit compile main.cpp` | Compile only |
-| `pucit debug main.cpp` | Compile with `-g` and open `gdb` |
-| `pucit watch main.cpp` | Recompile + run on save |
+| `pucit run main.cpp` | Compile with `g++` into `build/`, then run |
+| `pucit run main.c` | Compile with `gcc` into `build/`, then run |
+| `pucit compile …` | Compile only |
+| `pucit debug …` | Compile with `-g` and open `gdb` |
+| `pucit watch …` | Recompile + run on save |
 | `pucit clean` | Remove `build/` and `a.out` |
-| `pucit new hello` | Create `hello.cpp` from template |
-| `pucit init` | Scaffold `main.cpp` + `Makefile` + `.gitignore` |
+| `pucit new hello` | Create `hello.cpp` |
+| `pucit new hello.c` | Create `hello.c` |
+| `pucit init` | Scaffold C++ lab (`main.cpp` + Makefile) |
+| `pucit init c` | Scaffold C lab (`main.c` + Makefile) |
+| `pucit init cpp` | Same as `pucit init` |
 
 Extras:
 
 ```bash
 pucit run main.cpp util.cpp
 pucit run main.cpp -f "-O2 -std=c++20"
-pucit run main.cpp -i input.txt
+pucit run main.c -i input.txt
 ```
 
-### Oracle (Docker)
+### Local Oracle (for labs / DBeaver)
 
 ```bash
-pucit install oracle
+pucit install oracle      # installs/starts Docker if needed, then creates local DB
 pucit start oracle
 pucit stop oracle
 pucit status oracle
 pucit logs oracle
-pucit oracle connect
+pucit oracle connect      # Host/Port/User for DBeaver + sqlplus
 pucit oracle rm
 ```
 
-Uses Oracle Database Free image `container-registry.oracle.com/database/free:latest` as container `pucit-oracle` on port `1521`. Password is saved under `~/.config/pucit/oracle.env`.
+Uses Oracle Database Free image as container `pucit-oracle` on port `1521`. Password is saved under `~/.config/pucit/oracle.env` (Windows: `%APPDATA%\pucit\oracle.env`).
 
-If pull fails with auth errors, accept the license on [Oracle Container Registry](https://container-registry.oracle.com/), then `docker login container-registry.oracle.com` and retry.
+`pucit oracle connect` prints fields you can paste into **DBeaver** (New Connection → Oracle → Basic): Host `localhost`, Port `1521`, Database `FREEPDB1`, User `system`.
+
+If Docker Desktop is installed but not running (common on Windows), `install oracle` tries to start it and waits. If that fails, open Docker Desktop manually, wait until it says Running, then retry.
+
+If image pull fails with auth errors, accept the license on [Oracle Container Registry](https://container-registry.oracle.com/), then `docker login container-registry.oracle.com` and retry.
 
 ### Tooling / campus net
 
 ```bash
-pucit install pf          # g++, make, gdb, cmake
+pucit install pf          # gcc, g++, make, gdb, cmake (WinLibs on Windows)
 pucit install docker
 pucit install sqlclient   # Instant Client / sqlplus guidance
-pucit bypass set          # wraps bypass-pucit
+pucit bypass set
 pucit bypass unset
 pucit doctor
 pucit list
@@ -70,7 +79,9 @@ pucit open .
 
 ## Supported OS
 
-Linux (dnf/apt/…) and Windows (winget/choco) for installers. `run` / `compile` work anywhere `g++` or `clang++` is available.
+Linux (dnf/apt/…) and Windows (winget/choco) for installers. `run` / `compile` work anywhere `gcc`/`g++` (or clang) is available.
+
+On Windows after `pucit install pf`, **open a new terminal** so WinLibs is on PATH, then `pucit doctor`.
 
 ## Development / CI
 

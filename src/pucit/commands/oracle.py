@@ -1,4 +1,4 @@
-"""Oracle Database Free via Docker."""
+"""Oracle Database Free via Docker (local lab instance)."""
 
 from __future__ import annotations
 
@@ -8,10 +8,9 @@ from typing import Optional
 import typer
 
 from pucit import docker_util as d
-from pucit.platform import PackageError, docker_packages, install_packages
-from pucit.util import fail, info, ok, run_cmd, warn
+from pucit.util import fail, info, ok, run_cmd, warn, which
 
-oracle_app = typer.Typer(help="Manage the local Oracle Free container.")
+oracle_app = typer.Typer(help="Manage the local Oracle Free container for labs.")
 
 
 @oracle_app.command("install")
@@ -21,19 +20,8 @@ def oracle_install(
     ),
     pull_only: bool = typer.Option(False, "--pull-only", help="Only pull the image"),
 ) -> None:
-    """Install (pull + create) Oracle Free Docker container."""
-    if not d.docker_bin():
-        warn("Docker not found — trying to install it first")
-        try:
-            code = install_packages(docker_packages(), title="docker")
-        except PackageError as exc:
-            fail(str(exc))
-            raise typer.Exit(1) from exc
-        if code != 0:
-            raise typer.Exit(code)
-
-    if not d.docker_available():
-        fail("Docker is installed but not usable. Start the Docker daemon/Desktop and retry.")
+    """Install (pull + create) a local Oracle Free Docker container."""
+    if not d.ensure_docker(install_if_missing=True):
         raise typer.Exit(1)
 
     info(f"Pulling {d.oracle_image()} …")
@@ -76,6 +64,8 @@ def oracle_install(
 @oracle_app.command("start")
 def oracle_start() -> None:
     """Start the Oracle container."""
+    if not d.ensure_docker(install_if_missing=False):
+        raise typer.Exit(1)
     name = d.container_name()
     if not d.container_exists(name):
         fail(f"Container '{name}' not found. Run: pucit install oracle")
@@ -109,10 +99,10 @@ def oracle_status() -> None:
     """Show Oracle container status."""
     name = d.container_name()
     if not d.docker_bin():
-        fail("Docker/Podman not found")
+        fail("Docker/Podman not found. Run: pucit install docker")
         raise typer.Exit(1)
     if not d.container_exists(name):
-        warn(f"Container '{name}' is not installed")
+        warn(f"Container '{name}' is not installed. Run: pucit install oracle")
         raise typer.Exit(1)
     state = "running" if d.container_running(name) else "stopped"
     ok(f"{name}: {state}")
@@ -160,15 +150,14 @@ def oracle_rm(
 def oracle_connect(
     launch: bool = typer.Option(False, "--launch", "-l", help="Launch sqlplus if available"),
 ) -> None:
-    """Print (or launch) a sqlplus connection."""
-    from pucit.util import which
-
+    """Print DBeaver/sqlplus connection info for the local Oracle instance."""
     d.print_connect_info()
     if not launch:
         return
     sqlplus = which("sqlplus")
     if not sqlplus:
         fail("sqlplus not found. Try: pucit install sqlclient")
+        info("Or paste Host/Port/User into DBeaver — no sqlplus needed.")
         raise typer.Exit(1)
     pwd = d.load_oracle_password() or "oracle"
     port = d.oracle_port()

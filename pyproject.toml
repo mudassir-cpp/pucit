@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pucit"
 dynamic = ["version"]
-description = "PUCIT student toolkit CLI — Oracle, PF/C++, campus bypass, and ease-of-use commands"
+description = "PUCIT student toolkit CLI — Oracle, PF C/C++, campus bypass, and ease-of-use commands"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"

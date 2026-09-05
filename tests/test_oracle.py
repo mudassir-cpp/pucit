@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from pucit.docker_util import build_run_argv, container_name, generate_password, oracle_image
+from pucit.docker_util import (
+    build_run_argv,
+    container_name,
+    generate_password,
+    jdbc_url,
+    oracle_image,
+    oracle_port,
+)
 
 
 def test_generate_password():
@@ -19,3 +26,8 @@ def test_build_run_argv(monkeypatch):
     assert "ORACLE_PWD=Secret123" in argv
     assert oracle_image() in argv
     assert container_name() == "pucit-oracle" or True
+
+
+def test_jdbc_and_port():
+    port = oracle_port()
+    assert jdbc_url(port) == f"jdbc:oracle:thin:@//localhost:{port}/FREEPDB1"

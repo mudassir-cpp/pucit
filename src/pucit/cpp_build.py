@@ -1,10 +1,10 @@
-"""Compile and run C++ sources for PF labs."""
+"""Compile and run C / C++ sources for PF labs."""
 
 from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Literal, Optional, Sequence, Tuple
 
 from pucit import config as cfg
 from pucit.util import (
@@ -19,46 +19,75 @@ from pucit.util import (
     warn,
 )
 
+Lang = Literal["c", "cpp"]
 
 CPP_EXTS = {".cpp", ".cc", ".cxx", ".c++"}
+C_EXTS = {".c"}
+ALL_EXTS = CPP_EXTS | C_EXTS
 
 
-def find_compiler() -> Optional[str]:
+def find_cxx_compiler() -> Optional[str]:
     return first_existing(("g++", "clang++", "c++"))
 
 
-def default_std() -> str:
+def find_c_compiler() -> Optional[str]:
+    return first_existing(("gcc", "clang", "cc"))
+
+
+def find_compiler() -> Optional[str]:
+    """Prefer C++ compiler for doctor / which; fall back to C."""
+    return find_cxx_compiler() or find_c_compiler()
+
+
+def detect_lang(sources: Sequence[Path]) -> Lang:
+    if not sources:
+        return "cpp"
+    if any(p.suffix.lower() in C_EXTS for p in sources):
+        if any(p.suffix.lower() in CPP_EXTS for p in sources):
+            raise RuntimeError("Mix of .c and .cpp sources is not supported in one command")
+        return "c"
+    return "cpp"
+
+
+def default_std(lang: Lang) -> str:
+    if lang == "c":
+        return str(cfg.get("c_std", "c17"))
     return str(cfg.get("cxx_std", "c++17"))
 
 
-def default_extra_flags() -> List[str]:
-    return split_flags(str(cfg.get("cxx_flags", "-Wall -Wextra -O0")))
+def default_extra_flags(lang: Lang) -> List[str]:
+    key = "c_flags" if lang == "c" else "cxx_flags"
+    return split_flags(str(cfg.get(key, "-Wall -Wextra -O0")))
 
 
 def resolve_sources(sources: Sequence[str]) -> List[Path]:
     if not sources:
         cwd = Path.cwd()
-        main = cwd / "main.cpp"
-        if main.exists():
-            return [main]
-        cpp_files = sorted(p for p in cwd.iterdir() if p.is_file() and p.suffix.lower() in CPP_EXTS)
-        if len(cpp_files) == 1:
-            return cpp_files
-        if not cpp_files:
-            raise FileNotFoundError("No .cpp files found. Pass a file: pucit run main.cpp")
+        for name in ("main.cpp", "main.c"):
+            main = cwd / name
+            if main.exists():
+                return [main]
+        lab_files = sorted(p for p in cwd.iterdir() if p.is_file() and p.suffix.lower() in ALL_EXTS)
+        if len(lab_files) == 1:
+            return lab_files
+        if not lab_files:
+            raise FileNotFoundError("No .c/.cpp files found. Pass a file: pucit run main.cpp")
         raise FileNotFoundError(
-            "Multiple .cpp files found. Pass one or more explicitly, e.g. pucit run main.cpp util.cpp"
+            "Multiple source files found. Pass one or more explicitly, e.g. pucit run main.cpp util.cpp"
         )
 
     resolved: List[Path] = []
     for item in sources:
         path = Path(item)
         if path.is_dir():
-            main = path / "main.cpp"
-            if main.exists():
-                resolved.append(main.resolve())
-                continue
-            raise FileNotFoundError(f"No main.cpp in directory: {path}")
+            for name in ("main.cpp", "main.c"):
+                main = path / name
+                if main.exists():
+                    resolved.append(main.resolve())
+                    break
+            else:
+                raise FileNotFoundError(f"No main.cpp or main.c in directory: {path}")
+            continue
         if not path.exists():
             raise FileNotFoundError(f"Source not found: {path}")
         resolved.append(path.resolve())
@@ -83,12 +112,18 @@ def build_compile_argv(
     extra_flags: Optional[Sequence[str]] = None,
     debug: bool = False,
 ) -> List[str]:
-    compiler = find_compiler()
-    if not compiler:
-        raise RuntimeError("No C++ compiler found. Run: pucit install pf")
+    lang = detect_lang(sources)
+    if lang == "c":
+        compiler = find_c_compiler()
+        if not compiler:
+            raise RuntimeError("No C compiler found. Run: pucit install pf")
+    else:
+        compiler = find_cxx_compiler()
+        if not compiler:
+            raise RuntimeError("No C++ compiler found. Run: pucit install pf")
 
-    argv: List[str] = [compiler, f"-std={std or default_std()}"]
-    flags = list(extra_flags) if extra_flags is not None else default_extra_flags()
+    argv: List[str] = [compiler, f"-std={std or default_std(lang)}"]
+    flags = list(extra_flags) if extra_flags is not None else default_extra_flags(lang)
     argv.extend(flags)
     if debug and "-g" not in argv:
         argv.append("-g")

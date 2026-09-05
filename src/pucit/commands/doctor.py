@@ -10,7 +10,7 @@ from rich.table import Table
 
 from pucit import __version__
 from pucit import docker_util as d
-from pucit.cpp_build import find_compiler
+from pucit.cpp_build import find_c_compiler, find_cxx_compiler
 from pucit.util import console, which
 
 doctor_app = typer.Typer(help="Health checks (also available as top-level pucit doctor).")
@@ -30,17 +30,25 @@ def run_doctor() -> int:
     _row(table, "OS", True, f"{platform.system()} {platform.release()} ({platform.machine()})")
     _row(table, "Python", True, sys.version.split()[0])
 
-    compiler = find_compiler()
-    _row(table, "C++ compiler", bool(compiler), compiler or "run: pucit install pf")
-    _row(table, "make", bool(which("make")), which("make") or "—")
+    cxx = find_cxx_compiler()
+    cc = find_c_compiler()
+    _row(table, "C++ compiler", bool(cxx), cxx or "run: pucit install pf")
+    _row(table, "C compiler", bool(cc), cc or "run: pucit install pf")
+    _row(table, "make", bool(which("make") or which("mingw32-make")), which("make") or which("mingw32-make") or "—")
     _row(table, "gdb", bool(which("gdb")), which("gdb") or "—")
     _row(table, "cmake", bool(which("cmake")), which("cmake") or "—")
 
     docker = d.docker_bin()
     docker_ok = bool(docker) and d.docker_available()
-    detail = docker or "run: pucit install docker"
-    if docker and not d.docker_available():
-        detail = f"{docker} found but daemon not usable"
+    if not docker:
+        detail = "run: pucit install docker"
+    elif not d.docker_available():
+        if sys.platform.startswith("win"):
+            detail = f"{docker} found but Docker Desktop not running — start it, then retry"
+        else:
+            detail = f"{docker} found but daemon not usable — try: sudo systemctl start docker"
+    else:
+        detail = docker
     _row(table, "Docker", docker_ok, detail)
 
     name = d.container_name()
@@ -65,8 +73,10 @@ def run_list() -> int:
     table.add_column("Component")
     table.add_column("Status")
 
-    compiler = find_compiler()
-    table.add_row("pf / C++", "ready" if compiler else "not installed")
+    cxx = find_cxx_compiler()
+    cc = find_c_compiler()
+    table.add_row("pf / C++", "ready" if cxx else "not installed")
+    table.add_row("pf / C", "ready" if cc else "not installed")
     docker_ok = bool(d.docker_bin()) and d.docker_available()
     table.add_row("docker", "ready" if docker_ok else "not ready")
     name = d.container_name()

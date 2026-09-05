@@ -19,7 +19,7 @@ from pucit.util import fail, first_existing, info, ok, run_cmd, run_streaming, w
 
 app = typer.Typer(
     name="pucit",
-    help="PUCIT student toolkit — Oracle, PF/C++, bypass, and lab ease commands.",
+    help="PUCIT student toolkit — Oracle, PF C/C++, bypass, and lab ease commands.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -77,13 +77,13 @@ def logs_cmd(
 
 @app.command("run")
 def run_cmd(
-    sources: Optional[List[str]] = typer.Argument(None, help="C++ sources (default: main.cpp)"),
+    sources: Optional[List[str]] = typer.Argument(None, help="C/C++ sources (default: main.cpp or main.c)"),
     flags: Optional[str] = typer.Option(None, "--flags", "-f", help='Extra flags e.g. "-O2"'),
     std: Optional[str] = typer.Option(None, "--std", help="Language standard"),
     out: Optional[str] = typer.Option(None, "--out", "-o", help="Output binary"),
     input_file: Optional[str] = typer.Option(None, "--input", "-i", help="stdin from file"),
 ) -> None:
-    """Compile and run: pucit run main.cpp"""
+    """Compile and run: pucit run main.cpp  |  pucit run main.c"""
     try:
         code = cpp_build.execute_run(
             list(sources or []),
@@ -182,17 +182,21 @@ def clean_cmd() -> None:
 
 @app.command("new")
 def new_cmd(
-    name: str = typer.Argument(..., help="File or stem, e.g. hello or hello.cpp"),
+    name: str = typer.Argument(..., help="File or stem, e.g. hello, hello.c, or hello.cpp"),
     force: bool = typer.Option(False, "--force", "-f"),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help="c or cpp (default: from extension, else cpp)"),
 ) -> None:
-    """Create a new C++ file from template."""
-    new_file(name, force=force)
+    """Create a new C or C++ file from template."""
+    new_file(name, force=force, lang=lang)
 
 
 @app.command("init")
-def init_cmd(force: bool = typer.Option(False, "--force", "-f")) -> None:
-    """Scaffold a PF lab folder (main.cpp, Makefile, .gitignore)."""
-    init_project(force=force)
+def init_cmd(
+    lang: Optional[str] = typer.Argument("cpp", help="Language: c or cpp (default: cpp)"),
+    force: bool = typer.Option(False, "--force", "-f"),
+) -> None:
+    """Scaffold a PF lab folder: pucit init  |  pucit init c  |  pucit init cpp"""
+    init_project(force=force, lang=lang or "cpp")
 
 
 @app.command("doctor")
@@ -219,7 +223,9 @@ def which_cmd(tool: str = typer.Argument(..., help="Tool name, e.g. g++ or docke
     # allow g++ style
     path = which(tool) or first_existing((tool,))
     if not path and tool in {"g++", "cxx", "compiler"}:
-        path = cpp_build.find_compiler()
+        path = cpp_build.find_cxx_compiler() or cpp_build.find_compiler()
+    if not path and tool in {"gcc", "cc"}:
+        path = cpp_build.find_c_compiler()
     if not path and tool == "docker":
         path = d.docker_bin()
     if path:

@@ -1,4 +1,4 @@
-"""Simple TOML-ish config stored under the user config dir."""
+"""Simple JSON config stored under the user config dir."""
 
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ from pucit.util import config_dir
 
 DEFAULTS: Dict[str, Any] = {
     "cxx_std": "c++17",
+    "c_std": "c17",
     "cxx_flags": "-Wall -Wextra -O0",
+    "c_flags": "-Wall -Wextra -O0",
     "proxy": "http://172.16.0.6:8080",
     "oracle_image": "container-registry.oracle.com/database/free:latest",
     "oracle_container": "pucit-oracle",

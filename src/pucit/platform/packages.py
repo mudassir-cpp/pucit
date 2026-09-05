@@ -25,6 +25,27 @@ def install_packages(packages: Sequence[str], *, title: str = "packages") -> int
         )
 
     info(f"Installing {title} via {manager}: {', '.join(packages)}")
+    if manager == "winget":
+        # winget installs one package id at a time
+        code = 0
+        for pkg in packages:
+            argv = [
+                "winget",
+                "install",
+                "--accept-package-agreements",
+                "--accept-source-agreements",
+                pkg,
+            ]
+            info(f"  winget install {pkg}")
+            result = run_cmd(argv)
+            if result.returncode != 0:
+                fail(f"Failed to install {pkg} (exit {result.returncode})")
+                code = result.returncode
+                break
+        if code == 0:
+            ok(f"Installed {title}")
+        return code
+
     argv = _install_argv(manager, packages)
     result = run_cmd(argv)
     if result.returncode == 0:
@@ -39,37 +60,35 @@ def _install_argv(manager: str, packages: Sequence[str]) -> List[str]:
     if manager == "dnf":
         return ["sudo", "dnf", "install", "-y", *pkgs]
     if manager in ("apt", "apt-get"):
-        # refresh quietly then install
         run_cmd(["sudo", "apt-get", "update"], capture=True)
         return ["sudo", "apt-get", "install", "-y", *pkgs]
     if manager == "pacman":
         return ["sudo", "pacman", "-S", "--noconfirm", *pkgs]
     if manager == "zypper":
         return ["sudo", "zypper", "install", "-y", *pkgs]
-    if manager == "winget":
-        # winget installs one id at a time typically
-        return ["winget", "install", "--accept-package-agreements", "--accept-source-agreements", pkgs[0]]
     if manager == "choco":
         return ["choco", "install", "-y", *pkgs]
+    if manager == "winget":
+        return ["winget", "install", "--accept-package-agreements", "--accept-source-agreements", pkgs[0]]
     raise PackageError(f"Unsupported package manager: {manager}")
 
 
 def pf_packages() -> List[str]:
     if is_windows():
-        # Prefer winget package id when winget is present
         if which("winget"):
-            return ["mingw-w64"]  # may vary; doctor still verifies g++
+            # WinLibs MinGW-w64 ships gcc, g++, mingw32-make
+            return ["BrechtSanders.WinLibs.POSIX.UCRT"]
         return ["mingw"]
     manager = detect_pkg_manager()
     if manager == "dnf":
-        return ["gcc-c++", "make", "gdb", "cmake"]
+        return ["gcc", "gcc-c++", "make", "gdb", "cmake"]
     if manager in ("apt", "apt-get"):
-        return ["build-essential", "g++", "make", "gdb", "cmake"]
+        return ["build-essential", "gcc", "g++", "make", "gdb", "cmake"]
     if manager == "pacman":
         return ["base-devel", "gdb", "cmake"]
     if manager == "zypper":
-        return ["gcc-c++", "make", "gdb", "cmake"]
-    return ["g++", "make", "gdb", "cmake"]
+        return ["gcc", "gcc-c++", "make", "gdb", "cmake"]
+    return ["gcc", "g++", "make", "gdb", "cmake"]
 
 
 def docker_packages() -> List[str]:

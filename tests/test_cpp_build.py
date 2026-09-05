@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pucit.cpp_build import binary_path, build_compile_argv, resolve_sources
+from pucit.cpp_build import (
+    binary_path,
+    build_compile_argv,
+    detect_lang,
+    find_c_compiler,
+    resolve_sources,
+)
 
 
 def test_resolve_main(tmp_path, monkeypatch):
@@ -10,6 +16,14 @@ def test_resolve_main(tmp_path, monkeypatch):
     (tmp_path / "main.cpp").write_text("int main(){return 0;}\n")
     sources = resolve_sources([])
     assert sources[0].name == "main.cpp"
+
+
+def test_resolve_main_c(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "main.c").write_text("int main(void){return 0;}\n")
+    sources = resolve_sources([])
+    assert sources[0].name == "main.c"
+    assert detect_lang(sources) == "c"
 
 
 def test_build_compile_argv(tmp_path, monkeypatch):
@@ -26,6 +40,20 @@ def test_build_compile_argv(tmp_path, monkeypatch):
     assert str(src) in argv
 
 
+def test_build_compile_argv_c(tmp_path, monkeypatch):
+    if not find_c_compiler():
+        import pytest
+
+        pytest.skip("no C compiler")
+    monkeypatch.chdir(tmp_path)
+    src = tmp_path / "main.c"
+    src.write_text("int main(void){return 0;}\n")
+    out = binary_path([src])
+    argv = build_compile_argv([src], out, std="c17", extra_flags=["-Wall"])
+    assert "-std=c17" in argv
+    assert str(src) in argv
+
+
 def test_execute_run(tmp_path, monkeypatch):
     from pucit.cpp_build import execute_run
 
@@ -36,3 +64,16 @@ def test_execute_run(tmp_path, monkeypatch):
     code = execute_run(["main.cpp"])
     assert code == 0
     assert (tmp_path / "build").exists()
+
+
+def test_execute_run_c(tmp_path, monkeypatch):
+    from pucit.cpp_build import execute_run
+
+    if not find_c_compiler():
+        import pytest
+
+        pytest.skip("no C compiler")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "main.c").write_text('#include <stdio.h>\nint main(void){puts("hi");return 0;}\n')
+    code = execute_run(["main.c"])
+    assert code == 0
