@@ -72,6 +72,29 @@ pucit open .
 
 Linux (dnf/apt/…) and Windows (winget/choco) for installers. `run` / `compile` work anywhere `g++` or `clang++` is available.
 
+## Development / CI
+
+```bash
+pip install -e ".[dev]"
+pytest -q
+```
+
+GitHub Actions:
+
+- **CI** (`.github/workflows/ci.yml`) — tests on Linux + Windows for Python 3.10–3.13
+- **Publish** (`.github/workflows/publish.yml`) — uploads to PyPI on GitHub Release (Trusted Publisher / OIDC)
+
+### First PyPI publish
+
+1. On PyPI → **Publishing** → add a **pending trusted publisher**:
+   - Project: `pucit`
+   - Owner: `mudassir-cpp`
+   - Repo: `pucit`
+   - Workflow: `publish.yml`
+   - Environment: `pypi`
+2. On GitHub → **Settings → Environments → New** → name it `pypi` (optional approval rule recommended).
+3. Create a Release (e.g. tag `v0.1.0`) — the publish workflow runs and creates the PyPI project.
+
 ## License
 
 MIT — see `LICENSE.txt`.
