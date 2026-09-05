@@ -1,55 +1,56 @@
-"""Campus proxy via bypass-pucit."""
+"""Campus proxy — bundled bypass_pucit (no separate package)."""
 
 from __future__ import annotations
 
-import shutil
-import subprocess
 from typing import Optional
 
 import typer
 
 from pucit import config as cfg
-from pucit.util import fail, info, ok, which
+from pucit.util import fail, info, ok
 
-bypass_app = typer.Typer(help="Campus internet bypass (wraps bypass-pucit).")
-
-
-def _bypass_argv() -> list:
-    binary = which("bypass_pucit")
-    if binary:
-        return [binary]
-    # fallback: python -m bypass_pucit
-    return [shutil.which("python3") or shutil.which("python") or "python3", "-m", "bypass_pucit"]
+bypass_app = typer.Typer(help="Campus internet bypass (bundled).")
 
 
 @bypass_app.command("set")
 def bypass_set(
     proxy: Optional[str] = typer.Option(
-        None, "--proxy", "-p", help="Proxy URL (default from config / bypass-pucit)"
+        None, "--proxy", "-p", help="Proxy URL (default from config)"
     ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Detailed progress"),
 ) -> None:
-    """Apply campus proxy settings via bypass_pucit."""
-    argv = _bypass_argv() + ["set"]
-    proxy_url = proxy or str(cfg.get("proxy"))
+    """Apply campus proxy settings."""
+    from bypass_pucit.cli import main as bypass_main
+
+    argv = ["set"]
+    proxy_url = proxy or str(cfg.get("proxy") or "")
     if proxy_url:
         argv.extend(["--proxy", proxy_url])
-    info(" ".join(argv))
-    result = subprocess.run(argv)
-    if result.returncode == 0:
+    if verbose:
+        argv.append("--verbose")
+    info("bypass set " + " ".join(argv[1:]))
+    code = bypass_main(argv)
+    if code == 0:
         ok("Proxy applied")
     else:
-        fail("bypass_pucit set failed")
-    raise typer.Exit(result.returncode)
+        fail("Proxy set failed")
+    raise typer.Exit(code if code is not None else 0)
 
 
 @bypass_app.command("unset")
-def bypass_unset() -> None:
+def bypass_unset(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Detailed progress"),
+) -> None:
     """Remove campus proxy settings."""
-    argv = _bypass_argv() + ["unset"]
-    info(" ".join(argv))
-    result = subprocess.run(argv)
-    if result.returncode == 0:
+    from bypass_pucit.cli import main as bypass_main
+
+    argv = ["unset"]
+    if verbose:
+        argv.append("--verbose")
+    info("bypass unset")
+    code = bypass_main(argv)
+    if code == 0:
         ok("Proxy removed")
     else:
-        fail("bypass_pucit unset failed")
-    raise typer.Exit(result.returncode)
+        fail("Proxy unset failed")
+    raise typer.Exit(code if code is not None else 0)

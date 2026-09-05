@@ -58,8 +58,16 @@ def run_doctor() -> int:
     else:
         _row(table, "Oracle container", False, "run: pucit install oracle")
 
-    bypass = which("bypass_pucit")
-    _row(table, "bypass_pucit", bool(bypass), bypass or "pip install bypass-pucit")
+    try:
+        import bypass_pucit
+        from bypass_pucit.__about__ import __version__ as bypass_ver
+
+        bypass_ok = True
+        bypass_detail = f"bundled v{bypass_ver}"
+    except Exception as exc:  # pragma: no cover
+        bypass_ok = False
+        bypass_detail = str(exc)
+    _row(table, "bypass", bypass_ok, bypass_detail)
 
     sqlplus = which("sqlplus")
     _row(table, "sqlplus", bool(sqlplus), sqlplus or "optional: pucit install sqlclient")
@@ -84,7 +92,12 @@ def run_list() -> int:
         table.add_row("oracle", "running" if d.container_running(name) else "stopped")
     else:
         table.add_row("oracle", "not installed")
-    table.add_row("bypass_pucit", "ready" if which("bypass_pucit") else "not installed")
+    try:
+        import bypass_pucit  # noqa: F401
+
+        table.add_row("bypass", "bundled")
+    except Exception:
+        table.add_row("bypass", "missing")
     table.add_row("sqlplus", "ready" if which("sqlplus") else "not installed")
     console.print(table)
     return 0

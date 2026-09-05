@@ -48,6 +48,15 @@ def test_bypass_help():
     assert result.exit_code == 0
     assert "set" in result.stdout
     assert "unset" in result.stdout
+    assert "bundled" in result.stdout.lower() or "bypass" in result.stdout.lower()
+
+
+def test_bypass_bundled_import():
+    import bypass_pucit
+    from bypass_pucit.__about__ import __version__
+
+    assert __version__
+    assert bypass_pucit.DEFAULT_PROXY
 
 
 def test_install_help():
